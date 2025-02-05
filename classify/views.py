@@ -1,11 +1,9 @@
 from django.http import JsonResponse
-import requests
+import asyncio
+import httpx
 from django.views import View
 
-
-
 def is_prime(number):
-    
     if number < 2:
         return False
     for i in range(2, int(number ** 0.5) + 1):
@@ -22,8 +20,17 @@ def is_armstrong(number):
     power = len(digits)
     return sum(digit ** power for digit in digits) == number
 
+async def fetch_fun_fact(number):
+    url = f"http://numbersapi.com/{number}/math?json"
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, timeout=0.3)
+            return response.json().get("text", "No fact available")
+        except httpx.RequestError:
+            return "No fact available"
+
 class Number_Classification(View):
-    def get(self, request):
+    async def get(self, request):
         number = request.GET.get("number")
         
         if not number or not number.isdigit():
@@ -31,16 +38,15 @@ class Number_Classification(View):
         
         number = int(number)
         properties = []
-        
+
         if is_armstrong(number):
             properties.append("armstrong")
         properties.append("even" if number % 2 == 0 else "odd")
-        
+
         digit_sum = sum(int(d) for d in str(number))
-        
-        fun_fact_response = requests.get(f"http://numbersapi.com/{number}/math?json")
-        fun_fact = fun_fact_response.json().get("text", "No fact available")
-        
+
+        fun_fact = await fetch_fun_fact(number)
+
         return JsonResponse({
             "number": number,
             "is_prime": is_prime(number),
