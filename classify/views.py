@@ -1,7 +1,17 @@
 from django.http import JsonResponse
-import asyncio
 import httpx
+import asyncio
 from django.views import View
+
+async def fetch_fun_fact(number):
+    url = f"http://numbersapi.com/{number}/math?json"
+    try:
+        async with httpx.AsyncClient(timeout=0.3) as client:
+            response = await client.get(url)
+            if response.status_code == 200:
+                return response.json().get("text", "No fact available")
+    except httpx.RequestError:
+        return "No fact available"
 
 def is_prime(number):
     if number < 2:
@@ -20,31 +30,18 @@ def is_armstrong(number):
     power = len(digits)
     return sum(digit ** power for digit in digits) == number
 
-async def fetch_fun_fact(number):
-    url = f"http://numbersapi.com/{number}/math?json"
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, timeout=0.3)
-            return response.json().get("text", "No fact available")
-        except httpx.RequestError:
-            return "No fact available"
-
 class Number_Classification(View):
     async def get(self, request):
         number = request.GET.get("number")
-        
         if not number or not number.isdigit():
             return JsonResponse({"number": number, "error": True}, status=400)
-        
+
         number = int(number)
-        properties = []
-
-        if is_armstrong(number):
-            properties.append("armstrong")
+        properties = ["armstrong"] if is_armstrong(number) else []
         properties.append("even" if number % 2 == 0 else "odd")
-
         digit_sum = sum(int(d) for d in str(number))
 
+        # Run the API call asynchronously
         fun_fact = await fetch_fun_fact(number)
 
         return JsonResponse({
