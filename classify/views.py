@@ -3,16 +3,6 @@ import httpx
 import asyncio
 from django.views import View
 
-async def fetch_fun_fact(number):
-    url = f"http://numbersapi.com/{number}/math?json"
-    try:
-        async with httpx.AsyncClient(timeout=0.3) as client:
-            response = await client.get(url)
-            if response.status_code == 200:
-                return response.json().get("text", "No fact available")
-    except httpx.RequestError:
-        return "No fact available"
-
 def is_prime(number):
     if number < 2:
         return False
@@ -22,28 +12,32 @@ def is_prime(number):
     return True
 
 def is_perfect(number):
-    divisors = [i for i in range(1, number // 2 + 1) if number % i == 0]
-    return sum(divisors) == number
+    return sum(i for i in range(1, number // 2 + 1) if number % i == 0) == number
 
 def is_armstrong(number):
-    digits = [int(digit) for digit in str(number)]
-    power = len(digits)
-    return sum(digit ** power for digit in digits) == number
+    digits = [int(d) for d in str(number)]
+    return sum(d ** len(digits) for d in digits) == number
+
+async def get_fun_fact(number):
+    url = f"http://numbersapi.com/{number}/math?json"
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url)
+        return response.json().get("text", "No fact available")
 
 class Number_Classification(View):
     async def get(self, request):
         number = request.GET.get("number")
+        
         if not number or not number.isdigit():
             return JsonResponse({"number": number, "error": True}, status=400)
-
+        
         number = int(number)
         properties = ["armstrong"] if is_armstrong(number) else []
         properties.append("even" if number % 2 == 0 else "odd")
+        
         digit_sum = sum(int(d) for d in str(number))
-
-        # Run the API call asynchronously
-        fun_fact = await fetch_fun_fact(number)
-
+        fun_fact = await get_fun_fact(number)
+        
         return JsonResponse({
             "number": number,
             "is_prime": is_prime(number),
