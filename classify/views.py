@@ -40,7 +40,7 @@ async def get_fun_fact(number):
         response = await client.get(url)
         return response.json().get("text", "")
 
-class NumberClassification(View):
+class Number_Classification(View):
     async def get(self, request):
         number = request.GET.get("number")
         
