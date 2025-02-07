@@ -4,6 +4,7 @@ import asyncio
 from django.views import View
 
 def is_prime(number):
+    number = abs(number)
     if number < 2:
         return False
     if number in (2, 3):
@@ -18,6 +19,7 @@ def is_prime(number):
     return True
 
 def is_perfect(number):
+    number = abs(number)
     if number < 2:
         return False
     divisors_sum = 1
@@ -29,38 +31,37 @@ def is_perfect(number):
     return divisors_sum == number
 
 def is_armstrong(number):
-    digits = [int(d) for d in str(number)]
-    return sum(d ** len(digits) for d in digits) == number
+    digits = [int(d) for d in str(abs(number))]
+    return sum(d ** len(digits) for d in digits) == abs(number)
 
 async def get_fun_fact(number):
     url = f"http://numbersapi.com/{number}/math?json"
     async with httpx.AsyncClient() as client:
         response = await client.get(url)
-        return response.json().get("text", "No fact available")
+        return response.json().get("text", "")
 
-class Number_Classification(View):
+class NumberClassification(View):
     async def get(self, request):
         number = request.GET.get("number")
         
-        if not number or not number.isdigit():
-            return JsonResponse({"number": number, "error": True}, status=400)
+        try:
+            number = int(number)
+        except (TypeError, ValueError):
+            return JsonResponse({"error": "Invalid number"}, status=400)
         
-        number = int(number)
         prime_task = asyncio.to_thread(is_prime, number)
         perfect_task = asyncio.to_thread(is_perfect, number)
         armstrong_task = asyncio.to_thread(is_armstrong, number)
-        
+        fun_fact_task = get_fun_fact(number)
+
         properties = ["armstrong"] if await armstrong_task else []
         properties.append("even" if number % 2 == 0 else "odd")
-        
-        digit_sum = sum(int(d) for d in str(number))
-        
-        fun_fact_task = get_fun_fact(number)
-        
+        digit_sum = sum(int(d) for d in str(abs(number)))
+
         is_prime_result, is_perfect_result, fun_fact = await asyncio.gather(
             prime_task, perfect_task, fun_fact_task
         )
-        
+
         return JsonResponse({
             "number": number,
             "is_prime": is_prime_result,
